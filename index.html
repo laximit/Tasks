@@ -103,15 +103,16 @@
     }
 
     .fullTimer {
-      margin-bottom: 320px;
+      margin-bottom: 0px;
+      margin-left: 340px
     }
 
     #notesSidebar {
       position: fixed;
       bottom: 0;
       left: 0;
-      height: 300px;
-      width: calc(100% - 70px);
+      height: calc(100% - 20px);
+      width: 300px;
       background-color: #333;
       padding: 15px;
       display: flex;
@@ -135,6 +136,20 @@
       background-color: inherit;
       color: inherit;
       outline: none;
+    }
+
+    @media screen and (max-width: 1024px) {
+      #notesSidebar {
+        height: 200px;
+        width: calc(100% - 70px);
+        color: white;
+        overflow: hidden;
+      }
+
+      .fullTimer {
+        margin-bottom: 340px;
+        margin-left: 0px;
+      }
     }
 
   </style>
