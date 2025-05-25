@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Timer</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      padding: 20px;
+      background: #1e1e1e;
+      color: #e0e0e0;
+    }
+    .timer {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 6em;
+      text-align: center;
+      font-weight: 800;
+      margin-bottom: 20px;
+    }
+    .controls button,
+    #addTaskBtn,
+    .task-controls button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1em;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      z-index: 99;
+    }
+    .controls button:hover,
+    #addTaskBtn:hover,
+    .task-controls button:hover {
+      background-color: #0056b3;
+    }
+    #taskInput {
+      width: 300px;
+      padding: 10px;
+      font-size: 1em;
+      border-radius: 5px;
+      border: 1px solid #555;
+      font-family: 'JetBrains Mono', monospace;
+      background-color: #333;
+      color: #fff;
+      outline: none;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+      margin-top: 15px;
+    }
+    #noTasksMessage {
+      text-align: center;
+      color: #888;
+      margin-top: 10px;
+      font-style: italic;
+    }
+    li {
+      background: #2a2a2a;
+      padding: 15px 15px;
+      margin: 6px auto;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      font-size: 0.95em;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 550px;
+      position: relative;
+      gap: 12px;
+    }
+    .task-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      max-width: 300px;
+      word-wrap: break-word;
+      word-break: break-word;
+    }
+    .task-status {
+      font-size: 0.85em;
+      min-width: 130px;
+    }
+    .status-incomplete {
+      color: #888;
+    }
+    .status-complete {
+      color: #28a745;
+    }
+    .task-controls {
+      display: flex;
+      gap: 6px;
+    }
+    .task-controls i {
+      margin-right: 0;
+    }
+
+    .fullTimer {
+      margin-bottom: 320px;
+    }
+
+    #notesSidebar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      height: 300px;
+      width: calc(100% - 70px);
+      background-color: #333;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      color: white;
+      overflow: none;
+      margin: 20px;
+      border-radius: 10px;
+      box-shadow: 0px 0px 20px rgba(0,0,0,.5);
+    }
+
+    #notesTextarea {
+      flex: 1;
+      width: calc(100% - 20px);
+      resize: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1em;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: inherit;
+      color: inherit;
+      outline: none;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="notesSidebar">
+    <textarea id="notesTextarea" placeholder="Write your notes here..."></textarea>
+  </div>
+
+  <div class="fullTimer">
+    <div class="timer" id="timer">00:00</div>
+    <div class="controls" style="text-align:center;">
+      <button onclick="startTimer()"><i class="fas fa-play"></i></button>
+      <button onclick="pauseTimer()"><i class="fas fa-pause"></i></button>
+      <button onclick="clearTimer()"><i class="fas fa-stop"></i></button>
+    </div>
+    
+    <div style="margin-top: 15px; text-align:center;">
+      <input type="text" id="taskInput" placeholder="Enter a task" />
+      <button id="addTaskBtn" onclick="addTask()"><i class="fas fa-plus"></i></button>
+    </div>
+    
+    <div id="noTasksMessage">There are no tasks yet :)</div>
+    <ul id="taskList"></ul>
+  </div>
+
+  <script>
+    let seconds = 0, minutes = 0, hours = 0;
+    let timerInterval = null;
+    let isRunning = false;
+    let notesVisible = false;
+
+    function getCurrentTimeString() {
+      const format = (num) => String(num).padStart(2, '0');
+      return hours > 0 ? `${format(hours)}:${format(minutes)}:${format(seconds)}` : `${format(minutes)}:${format(seconds)}`;
+    }
+
+    function parseTime(timeString) {
+      const parts = timeString.split(':').map(Number);
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      return 0;
+    }
+
+    function getTimeDiffString(start, end) {
+      const diff = parseTime(end) - parseTime(start);
+      const hrs = Math.floor(diff / 3600);
+      const mins = Math.floor((diff % 3600) / 60);
+      const secs = diff % 60;
+      const format = (v) => String(v).padStart(2, '0');
+      return hrs > 0 ? `${format(hrs)}:${format(mins)}:${format(secs)}` : `${format(mins)}:${format(secs)}`;
+    }
+
+    function startTimer() {
+      if (!isRunning) {
+        timerInterval = setInterval(() => {
+          seconds++;
+          if (seconds === 60) {
+            seconds = 0;
+            minutes++;
+          }
+          if (minutes === 60) {
+            minutes = 0;
+            hours++;
+          }
+          document.getElementById('timer').textContent = getCurrentTimeString();
+        }, 1000);
+        isRunning = true;
+      }
+    }
+
+    function pauseTimer() {
+      clearInterval(timerInterval);
+      isRunning = false;
+    }
+
+    function clearTimer() {
+      clearInterval(timerInterval);
+      seconds = minutes = hours = 0;
+      document.getElementById('timer').textContent = '00:00';
+      isRunning = false;
+    }
+
+    function updateNoTasksMessage() {
+      const taskList = document.getElementById('taskList');
+      const noTasksMessage = document.getElementById('noTasksMessage');
+      noTasksMessage.style.display = taskList.children.length === 0 ? 'block' : 'none';
+    }
+
+    function addTask(taskText = '', isCompleted = false, completedTime = '', createdTime = '') {
+      const taskInput = document.getElementById('taskInput');
+      if (!taskText) {
+        taskText = taskInput.value.trim();
+        if (!taskText) return;
+      }
+
+      const createdTimestamp = createdTime || getCurrentTimeString();
+
+      const li = document.createElement('li');
+      const taskInfo = document.createElement('div');
+      taskInfo.className = 'task-info';
+
+      const status = document.createElement('div');
+      status.className = 'task-status';
+      status.dataset.created = createdTimestamp;
+
+      const span = document.createElement('span');
+      const rawText = taskText.split(' - ')[0];
+
+      const completeBtn = document.createElement('button');
+      const deleteBtn = document.createElement('button');
+      const noteBtn = document.createElement('button');
+      noteBtn.innerHTML = '<i class="fas fa-sticky-note"></i>';
+      noteBtn.onclick = () => {
+        const noteArea = document.getElementById('notesTextarea');
+        noteArea.value += `\n- ${rawText}`;
+        localStorage.setItem('taskNotes', noteArea.value);
+      };
+
+      function updateCompletionState(completed) {
+        if (completed) {
+          const currentTime = completedTime || getCurrentTimeString();
+          const diffTime = getTimeDiffString(status.dataset.created, currentTime);
+          status.classList.remove('status-incomplete');
+          status.classList.add('status-complete');
+          status.textContent = `Completed - ${currentTime} (Took ${diffTime})`;
+          completeBtn.innerHTML = '<i class="fas fa-rotate-left"></i>';
+        } else {
+          status.classList.remove('status-complete');
+          status.classList.add('status-incomplete');
+          status.textContent = 'Not Completed';
+          completeBtn.innerHTML = '<i class="fas fa-check"></i>';
+        }
+      }
+
+      completeBtn.onclick = () => {
+        const completed = status.classList.contains('status-incomplete');
+        updateCompletionState(completed);
+      };
+
+      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      deleteBtn.onclick = () => {
+        li.remove();
+        updateNoTasksMessage();
+        saveTasksToLocalStorage();
+      };
+
+      const controlsDiv = document.createElement('div');
+      controlsDiv.className = 'task-controls';
+      controlsDiv.appendChild(completeBtn);
+      controlsDiv.appendChild(deleteBtn);
+      controlsDiv.appendChild(noteBtn);
+
+      taskInfo.appendChild(status);
+      taskInfo.appendChild(span);
+      span.textContent = rawText;
+
+      li.appendChild(taskInfo);
+      li.appendChild(controlsDiv);
+
+      document.getElementById('taskList').appendChild(li);
+      updateCompletionState(isCompleted);
+
+      taskInput.value = '';
+      taskInput.focus();
+
+      updateNoTasksMessage();
+      saveTasksToLocalStorage();
+    }
+
+    function toggleNotes() {
+      const sidebar = document.getElementById('notesSidebar');
+      const btnIcon = document.querySelector('#notesToggleBtn i');
+      notesVisible = !notesVisible;
+      if (notesVisible) {
+        sidebar.classList.add('visible');
+        btnIcon.className = 'fas fa-times';
+      } else {
+        sidebar.classList.remove('visible');
+        btnIcon.className = 'fas fa-sticky-note';
+      }
+    }
+
+    function clearNotes() {
+      document.getElementById('notesTextarea').value = '';
+      localStorage.removeItem('taskNotes');
+    }
+
+    function saveTasksToLocalStorage() {
+      const taskList = document.querySelectorAll('#taskList li');
+      const tasks = [];
+
+      taskList.forEach(li => {
+        const taskInfo = li.querySelector('.task-info span').textContent;
+        const statusDiv = li.querySelector('.task-status');
+        const isCompleted = statusDiv.classList.contains('status-complete');
+        const created = statusDiv.dataset.created;
+        const completedTime = isCompleted ? statusDiv.textContent.split('- ')[1].split(' ')[0] : '';
+        tasks.push({ text: taskInfo, isCompleted, createdTime: created, completedTime });
+      });
+
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+
+
+    window.onload = function() {
+      const savedNotes = localStorage.getItem('taskNotes');
+      if (savedNotes) {
+        document.getElementById('notesTextarea').value = savedNotes;
+      }
+
+      const savedTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+      savedTasks.forEach(task => {
+        addTask(task.text, task.isCompleted, task.completedTime, task.createdTime);
+      });
+    };
+
+    document.getElementById('taskInput').addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addTask();
+      }
+    });
+
+    document.getElementById('notesTextarea').addEventListener('input', () => {
+      localStorage.setItem('taskNotes', document.getElementById('notesTextarea').value);
+    });
+  </script>
+</body>
+</html>
